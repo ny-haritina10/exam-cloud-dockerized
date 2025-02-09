@@ -243,9 +243,6 @@ CREATE TABLE commission (
     date_reference DATE NOT NULL
 );
 
-INSERT INTO commission (id, percentage_sell, percentage_buy, date_reference)
-VALUES (1, 5, 6, '2025-01-30');
-
 --
 --
 --
@@ -286,3 +283,42 @@ JOIN users u
 ON ct.id_user = u.id
 JOIN crypto cr 
 ON ct.id_crypto = cr.id;
+
+
+--
+--
+--
+-- Remove the email validation columns
+ALTER TABLE transactions 
+DROP COLUMN validation_token, 
+DROP COLUMN validation_token_expires_at, 
+DROP COLUMN is_validated;
+
+-- Add the new column for admin approval
+ALTER TABLE transactions 
+ADD COLUMN approved_by_admin BOOLEAN DEFAULT FALSE;
+
+
+--
+--
+--
+CREATE TABLE favori (
+    id SERIAL PRIMARY KEY,
+    id_user INT NOT NULL REFERENCES users(id),
+    id_crypto INT NOT NULL REFERENCES crypto(id)
+);
+
+
+ALTER TABLE public.transactions 
+ALTER COLUMN date_transaction SET DEFAULT NOW();
+
+--
+--
+--
+ALTER TABLE users ADD COLUMN fcm_token TEXT;
+
+--
+--
+--
+ALTER TABLE transactions ADD COLUMN notification_sent BOOLEAN;
+ALTER TABLE transactions ADD COLUMN notification_seen BOOLEAN;
