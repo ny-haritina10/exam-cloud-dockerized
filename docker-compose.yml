@@ -1,21 +1,34 @@
+  # docker-compose.yml
 version: '3.7'
-
 services:
-  vue-app:
-    image: node:18-alpine
+  # Vue app service remains unchanged
+  vue-app_backoffice:
+    image: node:18
+    container_name: vue-app_backoffice
     working_dir: /app
     ports:
-      - "5173:5173"
+      - "5174:5174"
     volumes:
-      - ./frontend:/app
-      
+      - ./frontend-backoffice:/app
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     environment:
       - NODE_ENV=development
 
-  exam_partie1-db:
+  vue-app_frontoffice:
+    image: node:18
+    container_name: vue-app_frontoffice
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend-frontoffice:/app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      - NODE_ENV=development
+
+  pg-persistance:
     image: postgres:16
-    container_name: exam_partie1-db
+    container_name: pg-persistance
     volumes:
       - db_data:/var/lib/postgresql/data:delegated
       - ./db-init:/docker-entrypoint-initdb.d
@@ -25,6 +38,25 @@ services:
       POSTGRES_DB: exam_partie1
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  sync-service:
+    build:
+      context: ./firestore-postgres-sync
+    container_name: sync-service
+    environment:  
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=exam_partie1
+    volumes:
+      - ./firestore-postgres-sync/firebase-credentials.json:/usr/src/app/firebase-credentials.json:ro
+    depends_on:
+      pg-persistance:
+        condition: service_healthy
 
   laravel-app:
     image: php:8.2-fpm
@@ -40,7 +72,7 @@ services:
       APP_DEBUG: 'true'
       APP_KEY: base64:I5ISOAwhmjC7DQ+CqE7kxm13107muB6YvVpjkYXkvBk=
       DB_CONNECTION: pgsql
-      DB_HOST: exam_partie1-db
+      DB_HOST: pg-persistance
       DB_PORT: 5432
       DB_DATABASE: exam_partie1
       DB_USERNAME: postgres
@@ -70,6 +102,7 @@ services:
       - SPRING_PROFILES_ACTIVE=dev
     working_dir: /spring-boot 
     command: ["sh", "-c", "./mvnw spring-boot:run"]
+
 
 volumes:
   db_data:
